@@ -3,7 +3,7 @@
 
 # In[15]:
 
-
+# Importing the necessary libraries
 import numpy as np
 from keras import models
 from keras import layers
@@ -18,6 +18,7 @@ from PIL import Image
 from PIL import Image, ImageOps
 import os
 import split_folders
+from sklearn.metrics import confusion_matrix, classification_report
 
 
 # In[16]:
@@ -34,29 +35,35 @@ np.random.seed(777)
 
 # In[18]:
 
-
+# Define a batch size for processing
 b_size = 50
+width = 150
+height = 150
+epoch = 30
 
+# Normalizing the images
 train_datagen = ImageDataGenerator(rescale = 1./255)
 validation_datagen = ImageDataGenerator(rescale = 1./255)
 test_datagen = ImageDataGenerator(rescale = 1./255)
 
+# We will create a train, validation and test set
+# Test set will be hidden and only used to test the model once you feel that the model is performing well on the validation set. 
 train_generator = train_datagen.flow_from_directory("C:/Data Analytics/Big_Data/Assignments/Keras_out/out/train/", 
-                                                    target_size=(150,150),
-                                                    color_mode= "rgb",
+                                                    target_size=(height,width),   #resizing the images to have all images of same size
+                                                    color_mode= "rgb",        # rgb since the images are colored 
                                                     batch_size = b_size, 
                                                     shuffle = True,
-                                                    class_mode = 'categorical')
+                                                    class_mode = 'categorical')   # Since the classes are more than 2, the class_mode is categorical
 
 validation_generator = validation_datagen.flow_from_directory("C:/Data Analytics/Big_Data/Assignments/Keras_out/out/val/", 
-                                                              target_size=(150,150),
+                                                              target_size=(height,width),
                                                               color_mode= "rgb",
                                                               batch_size = b_size, 
                                                               shuffle = True,
                                                               class_mode = 'categorical')
 
 test_generator = test_datagen.flow_from_directory("C:/Data Analytics/Big_Data/Assignments/Keras_out/out/test/", 
-                                                  target_size=(150,150),
+                                                  target_size=(height,width),
                                                   color_mode= "rgb",
                                                   batch_size = b_size, 
                                                   shuffle = True,
@@ -65,7 +72,7 @@ test_generator = test_datagen.flow_from_directory("C:/Data Analytics/Big_Data/As
 
 # In[19]:
 
-
+# Make sure that the batches of images and labels are correct
 for data_batch, label_batch in train_generator:
     print('train batch shape ', data_batch.shape )
     print('train_label_batch: ', label_batch.shape)
@@ -83,7 +90,7 @@ for data_batch, label_batch in test_generator:
 # In[20]:
 
 
-# Building the model
+# Building the CNN model
 
 
 # In[21]:
@@ -91,7 +98,7 @@ for data_batch, label_batch in test_generator:
 
 model = models.Sequential()
 
-model.add(layers.Conv2D(32,(3,3), activation = 'relu', input_shape = (150,150,3)))
+model.add(layers.Conv2D(32,(3,3), activation = 'relu', input_shape = (height,width,3)))    #the input shape should have the format (rows,columns,channel) in this cage the channel is 3 as they are rgb
 model.add(layers.MaxPooling2D((2,2)))
 
 model.add(layers.Conv2D(64,(3,3), activation = 'relu'))
@@ -103,9 +110,6 @@ model.add(layers.MaxPooling2D((2,2)))
 model.add(layers.Conv2D(128,(3,3), activation = 'relu'))
 model.add(layers.MaxPooling2D((2,2)))
 
-#model.add(layers.Conv2D(256,(3,3),activation = 'relu'))
-#model.add(layers.MaxPooling2D((2,2)))
-            
 model.add(layers.Flatten())
 model.add(layers.Dense(512, activation = 'relu'))
 
@@ -114,30 +118,30 @@ model.add(layers.Dense(5, activation = 'softmax'))
 
 # In[22]:
 
-
+# Print the model summary and see the number of parameters generated
 model.summary()
 
 
 # In[23]:
 
-
+# compiling the model
 model.compile(optimizer = 'RMSprop' , loss = 'categorical_crossentropy'  , metrics = ['acc'])
 
 
 # In[25]:
 
-
+# train the model for the number of epochs and store the results in the history
 history = model.fit_generator(
             train_generator,
             steps_per_epoch = np.ceil(2100/b_size),
-            epochs = 30,
+            epochs = epoch,
             validation_data = validation_generator,
             validation_steps = np.ceil(700/b_size))
 
 
 # In[26]:
 
-
+# Plot the graphs of the accuracy and loss function on train and validation set
 import matplotlib.pyplot as plt
 acc = history.history['acc']
 val_acc = history.history['val_acc']
@@ -159,13 +163,7 @@ plt.show()
 # In[27]:
 
 
-# accuracy and confusion matrix for the test set
-
-
-# In[41]:
-
-
-from sklearn.metrics import confusion_matrix, classification_report
+# It is also a good idea to view the accuracy and confusion matrix for the test set
 
 y_p = model.predict_generator(test_generator, np.ceil(700/b_size))
 y_pred = np.argmax(y_p , axis = 1)
@@ -185,9 +183,6 @@ print(classification_report(test_generator.classes, y_pred, target_names=target_
 
 
 # implementing the image augmentation and dropout to reduce overfitting
-
-
-# In[42]:
 
 
 train_datagen2 = ImageDataGenerator(
@@ -312,32 +307,3 @@ print("Test set accuracy after augmentation: ", acc)
 
 target_names = ['Rose', 'Daisy','Dandelion','Sunflower', 'Tulip']
 print(classification_report(test_generator2.classes, y_pred, target_names=target_names))
-
-
-# In[ ]:
-
-
-# Optional : using a pre trained model VGG16
-
-
-# In[55]:
-
-
-from keras.applications import VGG16
-
-conv_base = VGG16(weights = 'imagenet',
-                 include_top = False,
-                 input_shape = (150,150,3))
-
-
-# In[57]:
-
-
-conv_base.summary()
-
-
-# In[ ]:
-
-
-
-
